@@ -116,6 +116,16 @@ class _WinnersChartState extends State<WinnersChart>
     final baseColor =
         showPlayer1 ? const Color(0xFF0984E3) : const Color(0xFF00B894);
 
+    Winners data = Winners(
+      total: showPlayer1 ? 100 : 80,
+      percentage: showPlayer1 ? 75 : 65,
+      forehand: showPlayer1 ? 40 : 35,
+      backhand: showPlayer1 ? 30 : 25,
+      returnForehand: showPlayer1 ? 15 : 10,
+      returnBackhand: showPlayer1 ? 15 : 10,
+      isPlayer1: showPlayer1,
+    );
+
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
       appBar: AppBar(
@@ -264,8 +274,98 @@ class _WinnersChartState extends State<WinnersChart>
               ),
             ),
             const SizedBox(height: 24),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: Wrap(
+                spacing: 12,
+                runSpacing: 12,
+                children: [
+                  _buildDetailCard('Total', data.total, 100, getMetricColor(0)),
+                  _buildDetailCard('Forehand', data.forehand,
+                      data.getPercentages()['forehand']!, getMetricColor(1)),
+                  _buildDetailCard('Backhand', data.backhand,
+                      data.getPercentages()['backhand']!, getMetricColor(2)),
+                  _buildDetailCard(
+                      'Return Forehand',
+                      data.returnForehand,
+                      data.getPercentages()['returnForehand']!,
+                      getMetricColor(3)),
+                  _buildDetailCard(
+                      'Return Backhand',
+                      data.returnBackhand,
+                      data.getPercentages()['returnBackhand']!,
+                      getMetricColor(4)),
+                ],
+              ),
+            ),
+            const SizedBox(height: 24),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildDetailCard(
+      String title, int value, double percentage, Color color) {
+    return Container(
+      width: MediaQuery.of(context).size.width * 0.36, // Reduced from 0.45
+      padding: const EdgeInsets.all(10), // Reduced from 12
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10), // Reduced from 12
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 6, // Reduced from 8
+            offset: const Offset(0, 2), // Reduced from 3
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 10, // Reduced from 12
+                height: 10, // Reduced from 12
+                decoration: BoxDecoration(
+                  color: color,
+                  shape: BoxShape.circle,
+                ),
+              ),
+              const SizedBox(width: 6), // Reduced from 8
+              Text(
+                title,
+                style: TextStyle(
+                  fontSize: 11, // Reduced from 14
+                  fontWeight: FontWeight.w600,
+                  color: Colors.grey[800],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10), // Reduced from 12
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                '$value points',
+                style: const TextStyle(
+                  fontSize: 13, // Reduced from 16
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              Text(
+                '${percentage.toStringAsFixed(1)}%',
+                style: TextStyle(
+                  fontSize: 11, // Reduced from 14
+                  color: Colors.grey[600],
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }

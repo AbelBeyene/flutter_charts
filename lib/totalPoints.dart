@@ -1,574 +1,556 @@
-import 'package:flutter/material.dart';
+import 'dart:math' show pi;
 import 'package:fl_chart/fl_chart.dart';
+import 'package:flutter/material.dart';
 
+/// Holds the points for a single player.
+class PlayerPoints {
+  final int pointsWon;
+  final int pointsLost;
+  final double wonPercentage;
+  final double lostPercentage;
+
+  PlayerPoints({
+    this.pointsWon = 75,
+    this.pointsLost = 25,
+  })  : wonPercentage =
+            (pointsWon / (pointsWon + pointsLost) * 100).roundToDouble(),
+        lostPercentage =
+            (pointsLost / (pointsWon + pointsLost) * 100).roundToDouble();
+}
+
+/// A pie chart widget displaying match statistics for two players.
 class PointsChart extends StatefulWidget {
-  const PointsChart({Key? key}) : super(key: key);
+  PointsChart({Key? key}) : super(key: key);
+
+  // Example players
+  final PlayerPoints player1 = PlayerPoints();
+  final PlayerPoints player2 = PlayerPoints(pointsWon: 65, pointsLost: 35);
 
   @override
   State<PointsChart> createState() => _PointsChartState();
 }
 
-class _PointsChartState extends State<PointsChart> {
-  bool showWonPercentage = true;
-  bool showLostPercentage = true;
-  bool showPoints = true;
-  bool showPercentages = false;
-  String selectedTimeRange = 'All Time'; // Default time range
+class _PointsChartState extends State<PointsChart>
+    with SingleTickerProviderStateMixin {
+  /// Toggles between showing raw points or percentage values in the pie chart.
+  bool showPercentage = false;
 
-  final List<String> timeRanges = [
-    'Last Week',
-    'Last Month',
-    '3 Months',
-    '6 Months',
-    'Year to Date',
-    'All Time'
-  ];
+  /// Tracks which player's data to display. `true` = Player 1, `false` = Player 2.
+  bool showPlayer1 = true;
 
-  // Sample data for different time ranges
-  final Map<String, Points> player1PointsByRange = {
-    'Last Week': Points(
-        total: 20, won: 12, wonPercentage: 60, lost: 8, lostPercentage: 40),
-    'Last Month': Points(
-        total: 45, won: 25, wonPercentage: 56, lost: 20, lostPercentage: 44),
-    '3 Months': Points(
-        total: 75, won: 45, wonPercentage: 60, lost: 30, lostPercentage: 40),
-    '6 Months': Points(
-        total: 85, won: 50, wonPercentage: 59, lost: 35, lostPercentage: 41),
-    'Year to Date': Points(
-        total: 95, won: 55, wonPercentage: 58, lost: 40, lostPercentage: 42),
-    'All Time': Points(
-        total: 100, won: 60, wonPercentage: 60, lost: 40, lostPercentage: 40),
-  };
+  /// Toggles showing a descriptive info box.
+  bool showDetails = false;
 
-  final Map<String, Points> player2PointsByRange = {
-    'Last Week': Points(
-        total: 15, won: 8, wonPercentage: 53, lost: 7, lostPercentage: 47),
-    'Last Month': Points(
-        total: 40, won: 22, wonPercentage: 55, lost: 18, lostPercentage: 45),
-    '3 Months': Points(
-        total: 65, won: 35, wonPercentage: 54, lost: 30, lostPercentage: 46),
-    '6 Months': Points(
-        total: 70, won: 38, wonPercentage: 54, lost: 32, lostPercentage: 46),
-    'Year to Date': Points(
-        total: 75, won: 42, wonPercentage: 56, lost: 33, lostPercentage: 44),
-    'All Time': Points(
-        total: 80, won: 45, wonPercentage: 56, lost: 35, lostPercentage: 44),
-  };
+  late final PageController _pageController;
+  late final PageController _legendPageController;
+  late final AnimationController _animationController;
+  late final Animation<double> _animation;
 
-  Points get player1Points => player1PointsByRange[selectedTimeRange]!;
-  Points get player2Points => player2PointsByRange[selectedTimeRange]!;
+  @override
+  void initState() {
+    super.initState();
+    _pageController = PageController(initialPage: 0);
+    _legendPageController = PageController(initialPage: 0);
+
+    _animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    );
+
+    _animation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _animationController,
+        curve: Curves.easeInOutCubic,
+      ),
+    );
+
+    // Start the chart animation immediately
+    _animationController.forward();
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    _legendPageController.dispose();
+    _animationController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Points Chart'),
-        centerTitle: true,
-        backgroundColor: Colors.deepPurple,
-      ),
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Colors.deepPurple.shade50,
-              Colors.white,
-            ],
-          ),
-        ),
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.only(
-            left: 16.0,
-            right: 16.0,
-            top: 16.0,
-            bottom: 32.0,
-          ),
-          child: LayoutBuilder(builder: (context, constraints) {
-            return Column(
-              mainAxisSize: MainAxisSize.min,
+    return Card(
+      elevation: 6,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            _buildHeader(context),
+            if (showDetails) _buildInfoBox(context),
+            const SizedBox(height: 16),
+            _buildPlayersSummary(context),
+            const SizedBox(height: 16),
+            GestureDetector(
+              onTap: () => setState(() => showPercentage = !showPercentage),
+              child: _buildToggleButton(),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              showPlayer1 ? 'Player 1' : 'Player 2',
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    color: showPlayer1 ? Colors.teal : Colors.red,
+                    fontWeight: FontWeight.bold,
+                  ),
+            ),
+            const SizedBox(height: 8),
+            Row(
               children: [
-                // Time Range Filter Card
-                Card(
-                  elevation: 4,
-                  shadowColor: Colors.deepPurple.withOpacity(0.3),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(15),
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.05),
+                        blurRadius: 10,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
                   ),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16.0,
-                      vertical: 8.0,
-                    ),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(15),
-                      gradient: LinearGradient(
-                        colors: [
-                          Colors.deepPurple.shade50,
-                          Colors.white,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            width: 16,
+                            height: 16,
+                            decoration: const BoxDecoration(
+                              color: Colors.teal,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          const Text('Points Won',
+                              style: TextStyle(color: Colors.black)),
                         ],
                       ),
-                    ),
-                    child: DropdownButtonHideUnderline(
-                      child: DropdownButton<String>(
-                        value: selectedTimeRange,
-                        isExpanded: true,
-                        icon: Icon(Icons.calendar_today,
-                            color: Colors.deepPurple.shade700),
-                        style: TextStyle(
-                          color: Colors.deepPurple.shade700,
-                          fontWeight: FontWeight.w500,
-                        ),
-                        items: timeRanges.map((String range) {
-                          return DropdownMenuItem<String>(
-                            value: range,
-                            child: Text(range),
-                          );
-                        }).toList(),
-                        onChanged: (String? newValue) {
-                          if (newValue != null) {
-                            setState(() {
-                              selectedTimeRange = newValue;
-                            });
-                          }
-                        },
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 20),
-                Card(
-                  elevation: 8,
-                  shadowColor: Colors.deepPurple.withOpacity(0.4),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Container(
-                    padding: const EdgeInsets.all(16.0),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(20),
-                      gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [
-                          Colors.white,
-                          Colors.deepPurple.shade50,
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Container(
+                            width: 16,
+                            height: 16,
+                            decoration: const BoxDecoration(
+                              color: Colors.red,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          const Text('Points Lost',
+                              style: TextStyle(color: Colors.black)),
                         ],
                       ),
-                    ),
-                    child: SizedBox(
-                      height: 300,
-                      child: BarChart(
-                        BarChartData(
-                          alignment: BarChartAlignment.spaceAround,
-                          maxY: showPercentages ? 100 : 120,
-                          barGroups: [
-                            if (showWonPercentage)
-                              generateBarGroup(
-                                0,
-                                showPercentages
-                                    ? player1Points.wonPercentage.toDouble()
-                                    : player1Points.won.toDouble(),
-                                showPercentages
-                                    ? player2Points.wonPercentage.toDouble()
-                                    : player2Points.won.toDouble(),
-                              ),
-                            if (showLostPercentage)
-                              generateBarGroup(
-                                1,
-                                showPercentages
-                                    ? player1Points.lostPercentage.toDouble()
-                                    : player1Points.lost.toDouble(),
-                                showPercentages
-                                    ? player2Points.lostPercentage.toDouble()
-                                    : player2Points.lost.toDouble(),
-                              ),
-                            if (showPoints)
-                              generateBarGroup(
-                                2,
-                                player1Points.total.toDouble(),
-                                player2Points.total.toDouble(),
-                              ),
-                          ],
-                          titlesData: FlTitlesData(
-                            show: true,
-                            bottomTitles: AxisTitles(
-                              sideTitles: SideTitles(
-                                showTitles: true,
-                                getTitlesWidget: (value, meta) {
-                                  switch (value.toInt()) {
-                                    case 0:
-                                      return Text(
-                                        showPercentages
-                                            ? 'Won %'
-                                            : 'Won Points',
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.deepPurple.shade700,
-                                        ),
-                                      );
-                                    case 1:
-                                      return Text(
-                                        showPercentages
-                                            ? 'Lost %'
-                                            : 'Lost Points',
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.deepPurple.shade700,
-                                        ),
-                                      );
-                                    case 2:
-                                      return Text(
-                                        'Total',
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.deepPurple.shade700,
-                                        ),
-                                      );
-                                    default:
-                                      return const Text('');
-                                  }
-                                },
-                              ),
-                            ),
-                            rightTitles: AxisTitles(
-                              sideTitles: SideTitles(showTitles: false),
-                            ),
-                            topTitles: AxisTitles(
-                              sideTitles: SideTitles(
-                                showTitles: true,
-                                getTitlesWidget: (value, meta) {
-                                  int player1Value = 0;
-                                  int player2Value = 0;
-                                  String title = '';
-                                  switch (value.toInt()) {
-                                    case 0:
-                                      title = 'Won';
-                                      player1Value = showPercentages
-                                          ? player1Points.wonPercentage
-                                          : player1Points.won;
-                                      player2Value = showPercentages
-                                          ? player2Points.wonPercentage
-                                          : player2Points.won;
-                                      break;
-                                    case 1:
-                                      title = 'Lost';
-                                      player1Value = showPercentages
-                                          ? player1Points.lostPercentage
-                                          : player1Points.lost;
-                                      player2Value = showPercentages
-                                          ? player2Points.lostPercentage
-                                          : player2Points.lost;
-                                      break;
-                                    case 2:
-                                      title = 'Total';
-                                      player1Value = player1Points.total;
-                                      player2Value = player2Points.total;
-                                      break;
-                                  }
-                                  return Column(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Text(
-                                        title,
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.deepPurple.shade700,
-                                        ),
-                                      ),
-                                      Text(
-                                        '$player1Value${value.toInt() != 2 && showPercentages ? '%      ' : '          '}:$player2Value${value.toInt() != 2 && showPercentages ? '%   ' : '      '}',
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.w500,
-                                        ),
-                                      ),
-                                    ],
-                                  );
-                                },
-                              ),
-                            ),
-                            leftTitles: AxisTitles(
-                              sideTitles: SideTitles(
-                                showTitles: true,
-                                reservedSize: 40,
-                                getTitlesWidget: (value, meta) {
-                                  return Text(
-                                    value.toInt().toString(),
-                                    style: TextStyle(
-                                      color: Colors.deepPurple.shade700,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  );
-                                },
-                              ),
-                            ),
-                          ),
-                          barTouchData: BarTouchData(
-                            enabled: true,
-                            touchTooltipData: BarTouchTooltipData(
-                              tooltipRoundedRadius: 8,
-                              getTooltipItem:
-                                  (group, groupIndex, rod, rodIndex) {
-                                String label =
-                                    rodIndex == 0 ? 'Player 1: ' : 'Player 2: ';
-                                return BarTooltipItem(
-                                  '$label${rod.toY.toInt()}${groupIndex != 2 && showPercentages ? '%' : ''}',
-                                  TextStyle(
-                                    color: Colors.deepPurple.shade900,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                );
-                              },
-                            ),
-                          ),
-                          gridData: FlGridData(
-                            show: true,
-                            drawHorizontalLine: true,
-                            horizontalInterval: 20,
-                            getDrawingHorizontalLine: (value) {
-                              return FlLine(
-                                color: Colors.deepPurple.shade100,
-                                strokeWidth: 0.8,
-                                dashArray: [5, 5],
-                              );
-                            },
-                          ),
-                          borderData: FlBorderData(
-                            show: true,
-                            border: Border.all(
-                              color: Colors.deepPurple.shade200,
-                              width: 1,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 20),
-                Card(
-                  elevation: 4,
-                  shadowColor: Colors.deepPurple.withOpacity(0.3),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(15),
-                  ),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16.0,
-                      vertical: 8.0,
-                    ),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(15),
-                      gradient: LinearGradient(
-                        colors: [
-                          Colors.deepPurple.shade50,
-                          Colors.white,
-                        ],
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          'Points',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Colors.deepPurple.shade700,
-                          ),
-                        ),
-                        Switch(
-                          value: showPercentages,
-                          onChanged: (value) {
-                            setState(() {
-                              showPercentages = value;
-                            });
-                          },
-                          activeColor: Colors.deepPurple,
-                          activeTrackColor: Colors.deepPurple.shade200,
-                        ),
-                        Text(
-                          'Percentages',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Colors.deepPurple.shade700,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 20),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    FilterChip(
-                      label: Text(
-                        showPercentages ? 'Won Percentage' : 'Won Points',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w500,
-                          color: showWonPercentage
-                              ? Colors.white
-                              : Colors.deepPurple.shade700,
-                        ),
-                      ),
-                      selected: showWonPercentage,
-                      onSelected: (bool selected) {
-                        setState(() {
-                          showWonPercentage = selected;
-                        });
-                      },
-                      selectedColor: Colors.deepPurple,
-                      checkmarkColor: Colors.white,
-                      backgroundColor: Colors.deepPurple.shade50,
-                    ),
-                    FilterChip(
-                      label: Text(
-                        showPercentages ? 'Lost Percentage' : 'Lost Points',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w500,
-                          color: showLostPercentage
-                              ? Colors.white
-                              : Colors.deepPurple.shade700,
-                        ),
-                      ),
-                      selected: showLostPercentage,
-                      onSelected: (bool selected) {
-                        setState(() {
-                          showLostPercentage = selected;
-                        });
-                      },
-                      selectedColor: Colors.deepPurple,
-                      checkmarkColor: Colors.white,
-                      backgroundColor: Colors.deepPurple.shade50,
-                    ),
-                    FilterChip(
-                      label: Text(
-                        'Total Points',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w500,
-                          color: showPoints
-                              ? Colors.white
-                              : Colors.deepPurple.shade700,
-                        ),
-                      ),
-                      selected: showPoints,
-                      onSelected: (bool selected) {
-                        setState(() {
-                          showPoints = selected;
-                        });
-                      },
-                      selectedColor: Colors.deepPurple,
-                      checkmarkColor: Colors.white,
-                      backgroundColor: Colors.deepPurple.shade50,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 20),
-                Card(
-                  elevation: 4,
-                  shadowColor: Colors.deepPurple.withOpacity(0.3),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(15),
-                  ),
-                  child: Container(
-                    padding: const EdgeInsets.all(12.0),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(15),
-                      gradient: LinearGradient(
-                        colors: [
-                          Colors.deepPurple.shade50,
-                          Colors.white,
-                        ],
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        _buildLegendItem(Colors.indigo.shade700, 'Player 1'),
-                        const SizedBox(width: 20),
-                        _buildLegendItem(Colors.pink.shade700, 'Player 2'),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 32),
+                Expanded(child: _buildAnimatedChart()),
               ],
-            );
-          }),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  width: 8,
+                  height: 8,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: showPlayer1 ? Colors.teal : Colors.black12,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Container(
+                  width: 8,
+                  height: 8,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: !showPlayer1 ? Colors.red : Colors.black12,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
+            SizedBox(
+              height: 100,
+              child: PageView(
+                controller: _legendPageController,
+                physics: const NeverScrollableScrollPhysics(),
+                children: [
+                  _buildLegend(context),
+                  _buildLegend(context),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
 
-  BarChartGroupData generateBarGroup(int x, double y1, double y2) {
-    return BarChartGroupData(
-      x: x,
-      barRods: [
-        BarChartRodData(
-          toY: y1,
-          color: Colors.indigo.shade700,
-          width: 12,
-          borderRadius: const BorderRadius.all(Radius.circular(4)),
-          backDrawRodData: BackgroundBarChartRodData(
-            show: true,
-            toY: showPercentages ? 100 : 120,
-            color: Colors.indigo.withOpacity(0.1),
-          ),
+  /// Builds the header row with title and info toggle.
+  Widget _buildHeader(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          'Match Statistics',
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: Colors.black,
+              ),
         ),
-        BarChartRodData(
-          toY: y2,
-          color: Colors.pink.shade700,
-          width: 12,
-          borderRadius: const BorderRadius.all(Radius.circular(4)),
-          backDrawRodData: BackgroundBarChartRodData(
-            show: true,
-            toY: showPercentages ? 100 : 120,
-            color: Colors.pink.withOpacity(0.1),
+        IconButton(
+          icon: Icon(
+            showDetails ? Icons.info : Icons.info_outline,
+            color: Colors.black,
           ),
+          onPressed: () => setState(() => showDetails = !showDetails),
         ),
       ],
     );
   }
 
-  Widget _buildLegendItem(Color color, String label) {
+  /// Builds the descriptive info box shown when [showDetails] is true.
+  Widget _buildInfoBox(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(top: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.black.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Text(
+        'This chart shows the distribution of points won and lost by each '
+        'player throughout the match. Swipe left or right to switch players.',
+        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: Colors.black,
+            ),
+      ),
+    );
+  }
+
+  /// Builds a row summarizing total points for Player 1 and Player 2.
+  Widget _buildPlayersSummary(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+      decoration: BoxDecoration(
+        color: Colors.black.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: [
+          _buildPlayerStats(
+            'Player 1',
+            widget.player1.pointsWon + widget.player1.pointsLost,
+            Colors.teal,
+          ),
+          Container(
+            height: 50,
+            width: 1,
+            color: Colors.black12,
+          ),
+          _buildPlayerStats(
+            'Player 2',
+            widget.player2.pointsWon + widget.player2.pointsLost,
+            Colors.red,
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Builds the toggle button that switches between percentage or points view.
+  Widget _buildToggleButton() {
+    return Material(
+      child: ToggleButtons(
+        isSelected: [showPercentage, !showPercentage],
+        onPressed: (index) {
+          setState(() {
+            showPercentage = index == 0;
+          });
+        },
+        borderRadius: BorderRadius.circular(30),
+        selectedColor: Colors.white,
+        selectedBorderColor: Colors.teal,
+        fillColor: Colors.teal,
+        constraints: const BoxConstraints(
+          minWidth: 100,
+          minHeight: 40,
+        ),
+        children: const [
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SizedBox(width: 8),
+                Text('Percentage'),
+              ],
+            ),
+          ),
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SizedBox(width: 8),
+                Text('Points'),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Builds the PageView that displays an animated PieChart for Player 1 or Player 2.
+  Widget _buildAnimatedChart() {
+    return SizedBox(
+      height: 300,
+      child: PageView(
+        controller: _pageController,
+        onPageChanged: (index) {
+          setState(() {
+            showPlayer1 = index == 0;
+            _animationController.reset();
+            _animationController.forward();
+            _legendPageController.animateToPage(
+              index,
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeInOut,
+            );
+          });
+        },
+        children: [
+          _buildPieChart(isPlayer1: true),
+          _buildPieChart(isPlayer1: false),
+        ],
+      ),
+    );
+  }
+
+  /// Builds a PieChart for either Player 1 or Player 2, applying rotation and fade animations.
+  Widget _buildPieChart({required bool isPlayer1}) {
+    final PlayerPoints data = isPlayer1 ? widget.player1 : widget.player2;
+
+    return AnimatedBuilder(
+      animation: _animation,
+      builder: (context, child) {
+        // Spin in from 0 to 2π
+        final rotationAngle = _animation.value * 2 * pi;
+
+        return Transform.rotate(
+          angle: rotationAngle,
+          child: Opacity(
+            opacity: _animation.value,
+            child: PieChart(
+              PieChartData(
+                sectionsSpace: 4,
+                centerSpaceRadius: 28,
+                borderData: FlBorderData(show: false),
+                sections: [
+                  PieChartSectionData(
+                    color: Colors.teal,
+                    value: showPercentage
+                        ? data.wonPercentage
+                        : data.pointsWon.toDouble(),
+                    title: showPercentage
+                        ? '${data.wonPercentage}%'
+                        : '${data.pointsWon}',
+                    radius: 70,
+                    titleStyle: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                      shadows: [
+                        Shadow(
+                          color: Colors.black26,
+                          blurRadius: 2,
+                          offset: Offset(1, 1),
+                        )
+                      ],
+                    ),
+                    badgeWidget: _buildBadgeIcon(Icons.check_circle),
+                    badgePositionPercentageOffset: 1.3,
+                  ),
+                  PieChartSectionData(
+                    color: Colors.red,
+                    value: showPercentage
+                        ? data.lostPercentage
+                        : data.pointsLost.toDouble(),
+                    title: showPercentage
+                        ? '${data.lostPercentage}%'
+                        : '${data.pointsLost}',
+                    radius: 67,
+                    titleStyle: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                      shadows: [
+                        Shadow(
+                          color: Colors.black26,
+                          blurRadius: 2,
+                          offset: Offset(1, 1),
+                        )
+                      ],
+                    ),
+                    badgeWidget: _buildBadgeIcon(Icons.close),
+                    badgePositionPercentageOffset: 1.3,
+                  ),
+                ],
+                pieTouchData: PieTouchData(
+                  touchCallback: (FlTouchEvent event, pieTouchResponse) {
+                    // Add touch interaction if needed
+                  },
+                  enabled: true,
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  /// Builds a small badge icon overlay for each pie chart section.
+  Widget _buildBadgeIcon(IconData icon) {
+    return Icon(
+      icon,
+      size: 18,
+      color: Colors.white,
+    );
+  }
+
+  /// Builds a legend showing the points won/lost and a progress indicator.
+  Widget _buildLegend(BuildContext context) {
+    final data = showPlayer1 ? widget.player1 : widget.player2;
+
+    return Container(
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              _buildLegendItem(
+                label: 'Won',
+                color: Colors.teal,
+                icon: Icons.check_circle,
+                value: data.pointsWon,
+              ),
+              _buildLegendItem(
+                label: 'Lost',
+                color: Colors.red,
+                icon: Icons.close,
+                value: data.pointsLost,
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          LinearProgressIndicator(
+            value: data.wonPercentage / 100,
+            backgroundColor: Colors.black12,
+            valueColor: const AlwaysStoppedAnimation<Color>(Colors.teal),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Builds a single legend item showing label, icon, and point values.
+  Widget _buildLegendItem({
+    required String label,
+    required Color color,
+    required IconData icon,
+    required int value,
+  }) {
     return Row(
-      mainAxisSize: MainAxisSize.min,
       children: [
         Container(
-          width: 16,
-          height: 16,
+          padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
+            color: color.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(
+            icon,
             color: color,
-            borderRadius: BorderRadius.circular(4),
+            size: 20,
           ),
         ),
         const SizedBox(width: 8),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              label,
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: Colors.black,
+              ),
+            ),
+            Text(
+              '$value points',
+              style: const TextStyle(
+                fontSize: 12,
+                color: Colors.black54,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  /// Builds an individual player's stats display (e.g., total points).
+  Widget _buildPlayerStats(String label, int total, Color color) {
+    return Column(
+      children: [
         Text(
           label,
           style: TextStyle(
-            fontWeight: FontWeight.w500,
-            color: Colors.deepPurple.shade700,
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: color,
+            letterSpacing: 0.3,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Total: $total',
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: color,
+            letterSpacing: 0.3,
           ),
         ),
       ],
     );
   }
-}
-
-class Points {
-  Points({
-    required this.total,
-    required this.won,
-    required this.wonPercentage,
-    required this.lost,
-    required this.lostPercentage,
-  });
-
-  final int total;
-  final int won;
-  final int wonPercentage;
-  final int lost;
-  final int lostPercentage;
 }

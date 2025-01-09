@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 
@@ -121,97 +123,99 @@ class _BreakPointsRadarChartState extends State<BreakPointsRadarChart>
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        // Player Switch
-        Container(
-          margin: const EdgeInsets.symmetric(vertical: 16),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                height: 8,
-                width: 8,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: showPlayer1 ? Colors.blue : Colors.grey,
+    return SafeArea(
+      child: Column(
+        children: [
+          // Player Switch
+          Container(
+            margin: const EdgeInsets.symmetric(vertical: 16),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  height: 8,
+                  width: 8,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: showPlayer1 ? Colors.blue : Colors.grey,
+                  ),
                 ),
-              ),
-              const SizedBox(width: 8),
-              Container(
-                height: 8,
-                width: 8,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: !showPlayer1 ? Colors.blue : Colors.grey,
+                const SizedBox(width: 8),
+                Container(
+                  height: 8,
+                  width: 8,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: !showPlayer1 ? Colors.blue : Colors.grey,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
 
-        // PageView for charts
-        Expanded(
-          child: Column(
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    showPlayer1 ? 'Player 1' : 'Player 2',
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  SegmentedButton<bool>(
-                    segments: const [
-                      ButtonSegment<bool>(
-                        value: false,
-                        label: Text('Points'),
-                      ),
-                      ButtonSegment<bool>(
-                        value: true,
-                        label: Text('Percentage'),
-                      ),
-                    ],
-                    selected: {showPercentages},
-                    onSelectionChanged: (Set<bool> newSelection) {
-                      setState(() {
-                        showPercentages = newSelection.first;
-                      });
-                    },
-                  ),
-                ],
-              ),
-              const SizedBox(height: 10),
-              Expanded(
-                child: PageView(
-                  controller: _pageController,
-                  onPageChanged: (index) {
-                    setState(() {
-                      showPlayer1 = index == 0;
-                    });
-                  },
+          // PageView for charts
+          Expanded(
+            child: Column(
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    _buildPlayerChart(
-                      widget.breakPoints,
-                      widget.gamePoints,
-                      'Player 1',
+                    Text(
+                      showPlayer1 ? 'Player 1' : 'Player 2',
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
-                    _buildPlayerChart(
-                      widget.player2BreakPoints,
-                      widget.player2GamePoints,
-                      'Player 2',
+                    const SizedBox(width: 16),
+                    SegmentedButton<bool>(
+                      segments: const [
+                        ButtonSegment<bool>(
+                          value: false,
+                          label: Text('Points'),
+                        ),
+                        ButtonSegment<bool>(
+                          value: true,
+                          label: Text('Percentage'),
+                        ),
+                      ],
+                      selected: {showPercentages},
+                      onSelectionChanged: (Set<bool> newSelection) {
+                        setState(() {
+                          showPercentages = newSelection.first;
+                        });
+                      },
                     ),
                   ],
                 ),
-              ),
-            ],
+                const SizedBox(height: 10),
+                Expanded(
+                  child: PageView(
+                    controller: _pageController,
+                    onPageChanged: (index) {
+                      setState(() {
+                        showPlayer1 = index == 0;
+                      });
+                    },
+                    children: [
+                      _buildPlayerChart(
+                        widget.breakPoints,
+                        widget.gamePoints,
+                        'Player 1',
+                      ),
+                      _buildPlayerChart(
+                        widget.player2BreakPoints,
+                        widget.player2GamePoints,
+                        'Player 2',
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -220,83 +224,98 @@ class _BreakPointsRadarChartState extends State<BreakPointsRadarChart>
     return SingleChildScrollView(
       child: Column(
         children: [
-          SizedBox(
-            height: 350,
-            width: 300,
-            child: AnimatedBuilder(
-              animation: _animation,
-              builder: (context, child) {
-                return Transform.rotate(
-                  angle: _animation.value * 2 * 3.14159,
-                  child: Opacity(
-                    opacity: _animation.value,
-                    child: RadarChart(
-                      RadarChartData(
-                        radarTouchData: RadarTouchData(
-                          touchCallback: (FlTouchEvent event, response) {
-                            setState(() {
-                              if (!event.isInterestedForInteractions ||
-                                  response == null ||
-                                  response.touchedSpot == null) {
-                                touchedIndex = -1;
-                                return;
-                              }
-                            });
-                          },
-                        ),
-                        dataSets: [
-                          RadarDataSet(
-                            dataEntries: [
-                              RadarEntry(value: 0),
-                              RadarEntry(
-                                  value: showPercentages
-                                      ? breakPoints.convertedPercentage
-                                          .toDouble()
-                                      : breakPoints.converted.toDouble()),
-                              RadarEntry(
-                                  value: showPercentages
-                                      ? gamePoints.savedPercentage.toDouble()
-                                      : gamePoints.saved.toDouble()),
-                              RadarEntry(
-                                  value: showPercentages
-                                      ? gamePoints.convertedPercentage
-                                          .toDouble()
-                                      : gamePoints.converted.toDouble()),
-                            ],
-                            fillColor: Colors.blue.withOpacity(0.2),
-                            borderColor: Colors.blue,
-                            borderWidth: 2,
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Total Points Pie Chart
+
+              // Radar Chart
+              Container(
+                margin: EdgeInsets.symmetric(
+                  horizontal: 16,
+                ),
+                padding: EdgeInsets.all(16),
+                child: SizedBox(
+                  height: 350,
+                  width: 300,
+                  child: AnimatedBuilder(
+                    animation: _animation,
+                    builder: (context, child) {
+                      return Transform.scale(
+                        scale: _animation.value,
+                        child: Opacity(
+                          opacity: _animation.value,
+                          child: RadarChart(
+                            RadarChartData(
+                              radarTouchData: RadarTouchData(
+                                touchCallback: (FlTouchEvent event, response) {
+                                  setState(() {
+                                    if (!event.isInterestedForInteractions ||
+                                        response == null ||
+                                        response.touchedSpot == null) {
+                                      touchedIndex = -1;
+                                      return;
+                                    }
+                                  });
+                                },
+                              ),
+                              dataSets: [
+                                RadarDataSet(
+                                  dataEntries: [
+                                    RadarEntry(value: 0),
+                                    RadarEntry(
+                                        value: showPercentages
+                                            ? breakPoints.convertedPercentage
+                                                .toDouble()
+                                            : breakPoints.converted.toDouble()),
+                                    RadarEntry(
+                                        value: showPercentages
+                                            ? gamePoints.savedPercentage
+                                                .toDouble()
+                                            : gamePoints.saved.toDouble()),
+                                    RadarEntry(
+                                        value: showPercentages
+                                            ? gamePoints.convertedPercentage
+                                                .toDouble()
+                                            : gamePoints.converted.toDouble()),
+                                  ],
+                                  fillColor: Colors.blue.withOpacity(0.2),
+                                  borderColor: Colors.blue,
+                                  borderWidth: 2,
+                                ),
+                              ],
+                              tickCount: 5,
+                              ticksTextStyle: const TextStyle(
+                                  color: Colors.black, fontSize: 10),
+                              radarBorderData: BorderSide(
+                                  color: Colors.grey.withOpacity(0.2)),
+                              gridBorderData: BorderSide(
+                                  color: Colors.grey.withOpacity(0.2)),
+                              titleTextStyle: const TextStyle(
+                                  color: Colors.black, fontSize: 12),
+                              getTitle: (index, angle) {
+                                switch (index) {
+                                  case 0:
+                                    return RadarChartTitle(text: 'BP Saved');
+                                  case 1:
+                                    return RadarChartTitle(text: 'BP Conv.');
+                                  case 2:
+                                    return RadarChartTitle(text: 'GP Saved');
+                                  case 3:
+                                    return RadarChartTitle(text: 'GP Conv.');
+                                  default:
+                                    return RadarChartTitle(text: '');
+                                }
+                              },
+                            ),
                           ),
-                        ],
-                        tickCount: 5,
-                        ticksTextStyle:
-                            const TextStyle(color: Colors.black, fontSize: 10),
-                        radarBorderData:
-                            BorderSide(color: Colors.grey.withOpacity(0.2)),
-                        gridBorderData:
-                            BorderSide(color: Colors.grey.withOpacity(0.2)),
-                        titleTextStyle:
-                            const TextStyle(color: Colors.black, fontSize: 12),
-                        getTitle: (index, angle) {
-                          switch (index) {
-                            case 0:
-                              return RadarChartTitle(text: 'BP Saved');
-                            case 1:
-                              return RadarChartTitle(text: 'BP Conv.');
-                            case 2:
-                              return RadarChartTitle(text: 'GP Saved');
-                            case 3:
-                              return RadarChartTitle(text: 'GP Conv.');
-                            default:
-                              return RadarChartTitle(text: '');
-                          }
-                        },
-                      ),
-                    ),
+                        ),
+                      );
+                    },
                   ),
-                );
-              },
-            ),
+                ),
+              ),
+            ],
           ),
           Container(
             margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -313,11 +332,10 @@ class _BreakPointsRadarChartState extends State<BreakPointsRadarChart>
                 ),
               ],
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            child: Row(
               children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       'Statistics',
@@ -328,27 +346,135 @@ class _BreakPointsRadarChartState extends State<BreakPointsRadarChart>
                         letterSpacing: 0.5,
                       ),
                     ),
+                    const SizedBox(height: 16),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildLegendItem(
+                            'B - Points Saved',
+                            const Color(0xFF4A90E2),
+                            breakPoints.savedPercentage),
+                        const SizedBox(height: 8),
+                        _buildLegendItem(
+                            'B- Points Converted',
+                            const Color(0xFF50C878),
+                            breakPoints.convertedPercentage),
+                        const SizedBox(height: 8),
+                        _buildLegendItem('G Points Saved', Colors.red,
+                            gamePoints.savedPercentage),
+                        const SizedBox(height: 8),
+                        _buildLegendItem(
+                            'G- Points Converted',
+                            const Color(0xFF9B59B6),
+                            gamePoints.convertedPercentage),
+                      ],
+                    ),
                   ],
                 ),
-                const SizedBox(height: 16),
-                Column(
-                  children: [
-                    _buildLegendItem('Break Points Saved',
-                        const Color(0xFF4A90E2), breakPoints.savedPercentage),
-                    const SizedBox(height: 8),
-                    _buildLegendItem(
-                        'Break Points Converted',
-                        const Color(0xFF50C878),
-                        breakPoints.convertedPercentage),
-                    const SizedBox(height: 8),
-                    _buildLegendItem('Game Points Saved', Colors.red,
-                        gamePoints.savedPercentage),
-                    const SizedBox(height: 8),
-                    _buildLegendItem(
-                        'Game Points Converted',
-                        const Color(0xFF9B59B6),
-                        gamePoints.convertedPercentage),
-                  ],
+                Expanded(
+                  flex: 1,
+                  child: Column(
+                    children: [
+                      SizedBox(
+                        height: 96,
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: BarChart(
+                                BarChartData(
+                                  alignment: BarChartAlignment.center,
+                                  maxY: max(
+                                          widget.breakPoints.total.toDouble(),
+                                          widget.player2BreakPoints.total
+                                              .toDouble()) *
+                                      1.2,
+                                  titlesData: FlTitlesData(
+                                    show: true,
+                                    topTitles: AxisTitles(
+                                      sideTitles: SideTitles(showTitles: false),
+                                    ),
+                                    rightTitles: AxisTitles(
+                                      sideTitles: SideTitles(showTitles: false),
+                                    ),
+                                    bottomTitles: AxisTitles(
+                                      sideTitles: SideTitles(showTitles: false),
+                                    ),
+                                    leftTitles: AxisTitles(
+                                      sideTitles: SideTitles(showTitles: false),
+                                    ),
+                                  ),
+                                  borderData: FlBorderData(show: false),
+                                  gridData: FlGridData(show: false),
+                                  barGroups: [
+                                    BarChartGroupData(
+                                      x: 0,
+                                      barRods: [
+                                        BarChartRodData(
+                                          toY: widget.breakPoints.total
+                                              .toDouble(),
+                                          color: Colors.blue,
+                                          width: 16,
+                                          borderRadius:
+                                              BorderRadius.circular(4),
+                                        ),
+                                      ],
+                                      showingTooltipIndicators: [0],
+                                    ),
+                                    BarChartGroupData(
+                                      x: 1,
+                                      barRods: [
+                                        BarChartRodData(
+                                          toY: widget.player2BreakPoints.total
+                                              .toDouble(),
+                                          color: Colors.red,
+                                          width: 16,
+                                          borderRadius:
+                                              BorderRadius.circular(4),
+                                        ),
+                                      ],
+                                      showingTooltipIndicators: [0],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      SizedBox(
+                        height: 20,
+                      ),
+                      Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Container(
+                            // height: 20,
+                            // width: 20,
+                            color: Colors.transparent,
+                            child: Column(
+                              children: [
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Text("P1     ",
+                                        style: TextStyle(
+                                            color: Colors.blue,
+                                            fontWeight: FontWeight.bold)),
+                                    Text("P2",
+                                        style: TextStyle(
+                                            color: Colors.red,
+                                            fontWeight: FontWeight.bold))
+                                  ],
+                                ),
+                                Text("Total"),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),

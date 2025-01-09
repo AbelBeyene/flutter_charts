@@ -111,7 +111,7 @@ class _ErrorsChartState extends State<ErrorsChart>
   late Animation<double> _animation;
   late PageController _pageController;
   bool showPlayer1 = true;
-  bool showDetails = false;
+  bool showDetails = true;
 
   final player1Errors = Errors(
     total: 100,
