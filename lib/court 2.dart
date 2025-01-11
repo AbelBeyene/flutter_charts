@@ -2,14 +2,38 @@ import 'package:flutter/material.dart';
 
 /// Entry point of the application.
 void main() {
-  runApp(const MaterialApp(
-    home: Scaffold(
-      backgroundColor: Colors.green,
-      body: Center(
-        child: TennisCourt(),
+  runApp(const MyApp());
+}
+
+/// Top-level app widget.
+class MyApp extends StatelessWidget {
+  const MyApp({Key? key}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      home: Scaffold(
+        backgroundColor: Colors.green,
+        body: Center(
+          child: TennisCourt(),
+        ),
       ),
-    ),
-  ));
+    );
+  }
+}
+
+/// Enum to represent which side Player 1 is serving from:
+/// - `left` = ad side
+/// - `right` = deuce side
+enum ServeSide { left, right }
+
+/// Represents a position on the tennis court
+class CourtPosition {
+  final double x;
+  final double y;
+  final String zoneName;
+
+  CourtPosition(this.x, this.y, this.zoneName);
 }
 
 /// A stateful widget representing the interactive Tennis Court.
@@ -21,37 +45,152 @@ class TennisCourt extends StatefulWidget {
 }
 
 class _TennisCourtState extends State<TennisCourt> {
+  /// Current serving side for Player 1 (bottom side).
+  ServeSide serveSide = ServeSide.right;
+
+  /// Current ball position
+  CourtPosition? ballPosition;
+
+  /// Whether the ball is being dragged
+  bool isDragging = false;
+
+  /// Just for demonstration, we toggle the serve side each time the user taps the court.
+  void _toggleServeSide() {
+    setState(() {
+      serveSide =
+          serveSide == ServeSide.right ? ServeSide.left : ServeSide.right;
+    });
+  }
+
+  /// Determines the zone name based on the position
+  String _getZoneName(double x, double width, double y, double height) {
+    // Determine if we're in the top or bottom half
+    String courtSide = y < height / 2 ? "Top" : "Bottom";
+
+    // Determine horizontal position
+    String horizontalZone;
+    double relativeX = x / width;
+
+    if (relativeX < 0.25) {
+      horizontalZone = "Wide";
+    } else if (relativeX < 0.375) {
+      horizontalZone = "Body";
+    } else if (relativeX < 0.625) {
+      horizontalZone = "T";
+    } else if (relativeX < 0.75) {
+      horizontalZone = "Body";
+    } else {
+      horizontalZone = "Wide";
+    }
+
+    return "$courtSide $horizontalZone";
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        /// Court background
-        Positioned(
-          top: -190,
-          left: 0,
-          right: 0,
-          child: AspectRatio(
-            aspectRatio: 56 / 69, // Tennis court standard ratio (width/length)
-            child: Container(
-              color: const Color(0xFF2D5DA1),
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  return CustomPaint(
-                    size: Size(constraints.maxWidth, constraints.maxHeight),
-                    painter: CourtPainter(),
-                  );
-                },
+    return GestureDetector(
+      onTap: _toggleServeSide,
+      child: Stack(
+        children: [
+          /// Court background
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: AspectRatio(
+              aspectRatio: 56 / 69,
+              child: Container(
+                color: const Color(0xFF2D5DA1),
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    return Stack(
+                      children: [
+                        CustomPaint(
+                          size:
+                              Size(constraints.maxWidth, constraints.maxHeight),
+                          painter: CourtPainter(
+                            serveSide: serveSide,
+                            ballPosition: ballPosition,
+                          ),
+                        ),
+                        Positioned.fill(
+                          child: GestureDetector(
+                            onPanStart: (details) {
+                              setState(() {
+                                isDragging = true;
+                                ballPosition = CourtPosition(
+                                  details.localPosition.dx,
+                                  details.localPosition.dy,
+                                  _getZoneName(
+                                    details.localPosition.dx,
+                                    constraints.maxWidth,
+                                    details.localPosition.dy,
+                                    constraints.maxHeight,
+                                  ),
+                                );
+                              });
+                            },
+                            onPanUpdate: (details) {
+                              setState(() {
+                                ballPosition = CourtPosition(
+                                  details.localPosition.dx,
+                                  details.localPosition.dy,
+                                  _getZoneName(
+                                    details.localPosition.dx,
+                                    constraints.maxWidth,
+                                    details.localPosition.dy,
+                                    constraints.maxHeight,
+                                  ),
+                                );
+                              });
+                            },
+                            onPanEnd: (details) {
+                              setState(() {
+                                isDragging = false;
+                              });
+                            },
+                          ),
+                        ),
+                        if (ballPosition != null && !isDragging)
+                          Positioned(
+                            left: 10,
+                            top: 10,
+                            child: Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: Colors.black.withOpacity(0.7),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                'Landing Zone: ${ballPosition!.zoneName}',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 16,
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
+                    );
+                  },
+                ),
               ),
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
 
-/// Custom painter for drawing the tennis court.
+/// Custom painter for drawing the tennis court and highlighting
+/// the correct service box on the top half based on `serveSide`.
 class CourtPainter extends CustomPainter {
+  final ServeSide serveSide;
+  final CourtPosition? ballPosition;
+
+  CourtPainter({required this.serveSide, this.ballPosition});
+
   @override
   void paint(Canvas canvas, Size size) {
     // Basic Paints
@@ -128,7 +267,6 @@ class CourtPainter extends CustomPainter {
     );
 
     // === Center service line ===
-    // Splits the service boxes from the net down to the service line on each side.
     final centerCourtX = size.width / 2;
     // From net to the top service line
     canvas.drawLine(
@@ -144,7 +282,6 @@ class CourtPainter extends CustomPainter {
     );
 
     // === Center mark on each baseline ===
-    // Typically around 4 inches wide in real tennis, we replicate visually.
     const centerMarkHalfWidth = 4.0;
     // Top baseline
     canvas.drawLine(
@@ -159,53 +296,51 @@ class CourtPainter extends CustomPainter {
       linePaint,
     );
 
-    // === Zone Coloring for Each Service Box (Wide, Body, T) ===
+    // === Zone Coloring for Service Box ===
     final zonePaint = Paint()..style = PaintingStyle.fill;
 
-    // ---- BOTTOM HALF (from netY to bottomServiceLineY) ----
-    // Only color player 2's side (bottom half)
+    // Get coordinates for service boxes
+    final leftServiceBox = Rect.fromLTRB(
+      singlesStartX,
+      netY,
+      centerCourtX,
+      bottomServiceLineY,
+    );
 
-    // "Wide" Zones (Red)
+    final rightServiceBox = Rect.fromLTRB(
+      centerCourtX,
+      netY,
+      singlesStartX + singlesWidth,
+      bottomServiceLineY,
+    );
+
+    // Determine which service box to color based on serveSide
+    final activeServiceBox =
+        serveSide == ServeSide.left ? leftServiceBox : rightServiceBox;
+
+    // Calculate zone boundaries within the active service box
+    final boxWidth = activeServiceBox.width;
+    final zoneWidth = boxWidth / 3; // Divide box into 3 equal parts
+
+    // "Wide" Zone (Red)
     zonePaint.color = Colors.red.withOpacity(0.3);
-    // Left wide zone
     canvas.drawRect(
       Rect.fromLTRB(
-        singlesStartX,
+        activeServiceBox.left,
         netY,
-        size.width / 4,
-        bottomServiceLineY,
-      ),
-      zonePaint,
-    );
-    // Right wide zone
-    canvas.drawRect(
-      Rect.fromLTRB(
-        size.width * 3 / 4,
-        netY,
-        singlesStartX + singlesWidth,
+        activeServiceBox.left + zoneWidth, // One-third of the box width
         bottomServiceLineY,
       ),
       zonePaint,
     );
 
-    // "Body" Zones (Green)
+    // "Body" Zone (Green)
     zonePaint.color = Colors.green.withOpacity(0.3);
-    // Left body zone
     canvas.drawRect(
       Rect.fromLTRB(
-        size.width / 4,
+        activeServiceBox.left + zoneWidth, // Start at one-third
         netY,
-        size.width * 3 / 8,
-        bottomServiceLineY,
-      ),
-      zonePaint,
-    );
-    // Right body zone
-    canvas.drawRect(
-      Rect.fromLTRB(
-        size.width * 5 / 8,
-        netY,
-        size.width * 3 / 4,
+        activeServiceBox.left + (zoneWidth * 2), // End at two-thirds
         bottomServiceLineY,
       ),
       zonePaint,
@@ -213,20 +348,81 @@ class CourtPainter extends CustomPainter {
 
     // "T" Zone (Blue)
     zonePaint.color = Colors.blue.withOpacity(0.3);
-    // Middle T zone
     canvas.drawRect(
       Rect.fromLTRB(
-        size.width * 3 / 8,
+        activeServiceBox.left + (zoneWidth * 2), // Start at two-thirds
         netY,
-        size.width * 5 / 8,
+        activeServiceBox.right, // End at the right edge
         bottomServiceLineY,
       ),
       zonePaint,
     );
+
+    // === Highlight the correct TOP service box for Player 1's serve ===
+    // Serve rules for singles:
+    //   - Right (deuce) side => top-left service box
+    //   - Left (ad) side => top-right service box
+    final highlightPaint = Paint()
+      ..color = Colors.orange.withOpacity(0.35)
+      ..style = PaintingStyle.fill;
+
+    if (serveSide == ServeSide.right) {
+      // Right side => highlight the top-left box
+      final topLeftBox = Rect.fromLTRB(
+        singlesStartX,
+        topServiceLineY,
+        centerCourtX, // halfway horizontally
+        netY,
+      );
+      canvas.drawRect(topLeftBox, highlightPaint);
+    } else {
+      // Left side => highlight the top-right box
+      final topRightBox = Rect.fromLTRB(
+        centerCourtX,
+        topServiceLineY,
+        singlesStartX + singlesWidth,
+        netY,
+      );
+      canvas.drawRect(topRightBox, highlightPaint);
+    }
+
+    // Draw the ball if position is set
+    if (ballPosition != null) {
+      final ballPaint = Paint()
+        ..color = Colors.yellow
+        ..style = PaintingStyle.fill;
+
+      final ballStrokePaint = Paint()
+        ..color = Colors.black
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2;
+
+      // Draw ball shadow
+      canvas.drawCircle(
+        Offset(ballPosition!.x, ballPosition!.y) + const Offset(2, 2),
+        10,
+        Paint()..color = Colors.black.withOpacity(0.3),
+      );
+
+      // Draw ball
+      canvas.drawCircle(
+        Offset(ballPosition!.x, ballPosition!.y),
+        10,
+        ballPaint,
+      );
+
+      // Draw ball outline
+      canvas.drawCircle(
+        Offset(ballPosition!.x, ballPosition!.y),
+        10,
+        ballStrokePaint,
+      );
+    }
   }
 
   @override
   bool shouldRepaint(covariant CourtPainter oldDelegate) {
-    return false;
+    return oldDelegate.serveSide != serveSide ||
+        oldDelegate.ballPosition != ballPosition;
   }
 }

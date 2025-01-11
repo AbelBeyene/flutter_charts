@@ -1,26 +1,8 @@
 import 'package:flutter/material.dart';
 
 /// Entry point of the application.
-void main() {
-  runApp(const MyApp());
-}
 
 /// Top-level app widget.
-class MyApp extends StatelessWidget {
-  const MyApp({Key? key}) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      home: Scaffold(
-        backgroundColor: Colors.green,
-        body: Center(
-          child: TennisCourt(),
-        ),
-      ),
-    );
-  }
-}
 
 /// Enum to represent which side Player 1 is serving from:
 /// - `left` = ad side
@@ -100,6 +82,23 @@ class _TennisCourtState extends State<TennisCourt> {
 
   /// Add this to track if we should show the result
   bool showResult = false;
+
+  /// Add these new properties to track the last landing
+  String? lastLandingZone;
+  bool? lastLandingValid;
+
+  /// Function to send landing data to backend
+  void sendToBackend() {
+    if (lastLandingZone != null) {
+      final landingData = {
+        'zone': lastLandingZone,
+        'isValid': lastLandingValid,
+        'serveSide': serveSide.toString(),
+      };
+
+      print('Sending to backend: $landingData');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -250,11 +249,17 @@ class _TennisCourtState extends State<TennisCourt> {
                                     ballTrail.clear();
                                     showResult = true;
 
+                                    // Store the last landing data
+                                    if (ballPosition != null) {
+                                      lastLandingZone = ballPosition!.zoneName;
+                                      lastLandingValid = isValidLanding;
+                                      sendToBackend(); // Call the function after updating landing data
+                                    }
+
                                     // Wait 1 second then clear the ball and result
                                     Future.delayed(const Duration(seconds: 1),
                                         () {
                                       if (mounted) {
-                                        // Check if widget is still mounted
                                         setState(() {
                                           ballPosition = null;
                                           showResult = false;
@@ -456,7 +461,7 @@ class CourtPainter extends CustomPainter {
     );
 
     // "Body" Zone (Green)
-    zonePaint.color = Colors.green.withOpacity(0.3);
+    zonePaint.color = Colors.green.withOpacity(0.6);
     canvas.drawRect(
       Rect.fromLTRB(
         activeServiceBox.left + zoneWidth, // Start at one-third
@@ -467,8 +472,8 @@ class CourtPainter extends CustomPainter {
       zonePaint,
     );
 
-    // "T" Zone (Blue)
-    zonePaint.color = Colors.blue.withOpacity(0.3);
+    // "T" Zone (Blue -> Orange)
+    zonePaint.color = Colors.yellow.withOpacity(0.6);
     canvas.drawRect(
       Rect.fromLTRB(
         activeServiceBox.left + (zoneWidth * 2), // Start at two-thirds
@@ -484,7 +489,7 @@ class CourtPainter extends CustomPainter {
     //   - Right (deuce) side => top-left service box
     //   - Left (ad) side => top-right service box
     final highlightPaint = Paint()
-      ..color = Colors.orange.withOpacity(0.35)
+      ..color = Colors.transparent.withOpacity(0.35)
       ..style = PaintingStyle.fill;
 
     if (serveSide == ServeSide.right) {
