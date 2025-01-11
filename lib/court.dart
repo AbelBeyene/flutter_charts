@@ -2,21 +2,38 @@ import 'package:flutter/material.dart';
 
 /// Entry point of the application.
 void main() {
-  runApp(const MaterialApp(
-    home: Scaffold(
-      body: Center(
-        child: TennisCourt(),
-      ),
-    ),
-  ));
+  runApp(const MyApp());
 }
 
-/// Represents a single serve with its position and result.
-class Serve {
-  final Offset position;
-  final bool isGoal;
+/// Top-level app widget.
+class MyApp extends StatelessWidget {
+  const MyApp({Key? key}) : super(key: key);
 
-  Serve({required this.position, required this.isGoal});
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      home: Scaffold(
+        backgroundColor: Colors.green,
+        body: Center(
+          child: TennisCourt(),
+        ),
+      ),
+    );
+  }
+}
+
+/// Enum to represent which side Player 1 is serving from:
+/// - `left` = ad side
+/// - `right` = deuce side
+enum ServeSide { left, right }
+
+/// Represents a position on the tennis court
+class CourtPosition {
+  final double x;
+  final double y;
+  final String zoneName;
+
+  CourtPosition(this.x, this.y, this.zoneName);
 }
 
 /// A stateful widget representing the interactive Tennis Court.
@@ -28,174 +45,253 @@ class TennisCourt extends StatefulWidget {
 }
 
 class _TennisCourtState extends State<TennisCourt> {
-  /// List of all serves recorded.
-  final List<Serve> _serves = [];
+  /// Current serving side for Player 1 (bottom side).
+  ServeSide serveSide = ServeSide.right;
 
-  /// Count of successful serves.
-  int _goalCount = 0;
+  /// Current ball position
+  CourtPosition? ballPosition;
 
-  /// Count of failed serves.
-  int _failCount = 0;
+  /// Whether the ball is being dragged
+  bool isDragging = false;
+
+  /// Determines the zone name based on the position
+  String _getZoneName(double x, double width, double y, double height) {
+    // First check if we're in a valid service box
+    final netY = height / 2;
+    final serviceLineY = height - (height * (18 / 78));
+    final singlesWidth = width * (27 / 36);
+    final singlesStartX = (width - singlesWidth) / 2;
+    final centerX = width / 2;
+
+    // Define the active service box based on serveSide
+    final activeLeft = serveSide == ServeSide.right ? centerX : singlesStartX;
+    final activeRight =
+        serveSide == ServeSide.right ? singlesStartX + singlesWidth : centerX;
+
+    // Check if the ball is within the active service box
+    isValidLanding =
+        (y > netY && y < serviceLineY) && (x > activeLeft && x < activeRight);
+
+    if (!isValidLanding) {
+      return "Fault";
+    }
+
+    // If we're in a valid zone, determine which one
+    String horizontalZone;
+    double relativeX = (x - activeLeft) / (activeRight - activeLeft);
+
+    if (relativeX < 1 / 3) {
+      horizontalZone = "Wide";
+    } else if (relativeX < 2 / 3) {
+      horizontalZone = "Body";
+    } else {
+      horizontalZone = "T";
+    }
+
+    return horizontalZone;
+  }
+
+  /// Add these new properties
+  List<CourtPosition> ballTrail = [];
+  static const int maxTrailLength = 5;
+
+  /// Whether the ball landed in a valid zone
+  bool isValidLanding = false;
+
+  /// Add this to track if we should show the result
+  bool showResult = false;
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
+    return Column(
       children: [
-        /// Court background with tap detection.
-        GestureDetector(
-          onTapDown: _handleTap,
-          child: Container(
-            color: const Color(0xFF2D5DA1),
-            width: double.infinity,
-            height: double.infinity,
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                return CustomPaint(
-                  size: Size(constraints.maxWidth, constraints.maxHeight),
-                  painter: CourtPainter(
-                    serves: _serves,
-                  ),
-                );
-              },
-            ),
-          ),
-        ),
-
-        /// Color indicators at the top.
-        Positioned(
-          top: 16,
-          left: 0,
-          right: 0,
+        // Serve position buttons
+        Padding(
+          padding: const EdgeInsets.all(8.0),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              _buildColorIndicator(Colors.red, 'Fail'),
-              const SizedBox(width: 8),
-              _buildColorIndicator(Colors.green, 'Goal'),
-            ],
-          ),
-        ),
-
-        /// Counters at the bottom.
-        Positioned(
-          bottom: 16,
-          left: 0,
-          right: 0,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              _buildCounter('Goals', _goalCount, Colors.green),
+              ElevatedButton(
+                onPressed: () => setState(() => serveSide = ServeSide.right),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor:
+                      serveSide == ServeSide.right ? Colors.blue : Colors.grey,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                ),
+                child: const Text('Deuce Side'),
+              ),
               const SizedBox(width: 16),
-              _buildCounter('Fails', _failCount, Colors.red),
+              ElevatedButton(
+                onPressed: () => setState(() => serveSide = ServeSide.left),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: serveSide == ServeSide.left
+                      ? Colors.blue
+                      : const Color.fromARGB(180, 158, 158, 158),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                ),
+                child: const Text('Ad Side'),
+              ),
             ],
           ),
         ),
-      ],
-    );
-  }
+        // Tennis court
+        Expanded(
+          child: Stack(
+            children: [
+              Container(
+                color: Colors.green,
+                height: double.infinity,
+                // child: Column(),
+                child: Stack(
+                  children: [
+                    if (ballPosition != null && !isDragging && showResult)
+                      Positioned(
+                        left: 10,
+                        top: 360,
+                        child: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withOpacity(0.7),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            isValidLanding
+                                ? 'Landing Zone: ${ballPosition!.zoneName}'
+                                : 'Fault',
+                            style: TextStyle(
+                              color: isValidLanding ? Colors.white : Colors.red,
+                              fontSize: 16,
+                              fontWeight: isValidLanding
+                                  ? FontWeight.normal
+                                  : FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+                    Positioned(
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      child: Container(
+                        color: Colors.red,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
 
-  /// Handles tap events on the court.
-  void _handleTap(TapDownDetails details) {
-    RenderBox box = context.findRenderObject() as RenderBox;
-    Offset localPosition = box.globalToLocal(details.globalPosition);
-    Size size = box.size;
+              /// Court background
+              Positioned(
+                top: -180,
+                left: 0,
+                right: 0,
+                child: AspectRatio(
+                  aspectRatio: 56 / 69,
+                  child: Container(
+                    color: const Color(0xFF2D5DA1),
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        return Stack(
+                          children: [
+                            CustomPaint(
+                              size: Size(
+                                  constraints.maxWidth, constraints.maxHeight),
+                              painter: CourtPainter(
+                                serveSide: serveSide,
+                                ballPosition: ballPosition,
+                                ballTrail: ballTrail,
+                              ),
+                            ),
+                            Positioned.fill(
+                              child: GestureDetector(
+                                onPanStart: (details) {
+                                  setState(() {
+                                    isDragging = true;
+                                    ballPosition = CourtPosition(
+                                      details.localPosition.dx,
+                                      details.localPosition.dy,
+                                      _getZoneName(
+                                        details.localPosition.dx,
+                                        constraints.maxWidth,
+                                        details.localPosition.dy,
+                                        constraints.maxHeight,
+                                      ),
+                                    );
+                                  });
+                                },
+                                onPanUpdate: (details) {
+                                  setState(() {
+                                    // Add current position to trail
+                                    if (ballPosition != null) {
+                                      ballTrail.add(ballPosition!);
+                                      // Keep only the last few positions
+                                      if (ballTrail.length > maxTrailLength) {
+                                        ballTrail.removeAt(0);
+                                      }
+                                    }
 
-    // Determine if the tap is within the court boundaries.
-    if (!_isWithinCourt(localPosition, size)) return;
+                                    ballPosition = CourtPosition(
+                                      details.localPosition.dx,
+                                      details.localPosition.dy,
+                                      _getZoneName(
+                                        details.localPosition.dx,
+                                        constraints.maxWidth,
+                                        details.localPosition.dy,
+                                        constraints.maxHeight,
+                                      ),
+                                    );
+                                  });
+                                },
+                                onPanEnd: (details) {
+                                  setState(() {
+                                    isDragging = false;
+                                    ballTrail.clear();
+                                    showResult = true;
 
-    // Determine the zone of the tap.
-    String zone = _determineZone(localPosition, size);
-
-    // Classify as goal or fail based on zone.
-    bool isGoal = zone != 'Wide'; // For example, 'Body' and 'T' are goals.
-
-    setState(() {
-      _serves.add(Serve(position: localPosition, isGoal: isGoal));
-      if (isGoal) {
-        _goalCount += 1;
-      } else {
-        _failCount += 1;
-      }
-    });
-  }
-
-  /// Checks if the tap is within the main doubles court area.
-  bool _isWithinCourt(Offset pos, Size size) {
-    // Assuming court occupies 90% width and height as per the painter.
-    double courtWidth = size.width;
-    double courtHeight = size.height;
-
-    // You can adjust margins if needed.
-    return pos.dx >= 0 &&
-        pos.dx <= courtWidth &&
-        pos.dy >= 0 &&
-        pos.dy <= courtHeight;
-  }
-
-  /// Determines which zone the tap is in: Wide, Body, or T.
-  String _determineZone(Offset pos, Size size) {
-    double courtWidth = size.width;
-    double courtHeight = size.height;
-
-    // Define horizontal boundaries based on fractions.
-    double wideBoundary = courtWidth / 4;
-    double bodyBoundaryLeft = courtWidth * 3 / 8;
-    double bodyBoundaryRight = courtWidth * 5 / 8;
-    double wideBoundaryRight = courtWidth * 3 / 4;
-
-    if (pos.dx < wideBoundary || pos.dx > wideBoundaryRight) {
-      return 'Wide';
-    } else if (pos.dx >= bodyBoundaryLeft && pos.dx <= bodyBoundaryRight) {
-      return 'T';
-    } else {
-      return 'Body';
-    }
-  }
-
-  /// Builds a color indicator with label.
-  Widget _buildColorIndicator(Color color, String label) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.8),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Text(
-        label,
-        style: const TextStyle(
-          color: Colors.white,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
-    );
-  }
-
-  /// Builds a counter widget displaying the label and count.
-  Widget _buildCounter(String label, int count, Color color) {
-    return Row(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: color.withOpacity(0.2),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Text(
-            '$count',
-            style: TextStyle(
-              color: color,
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ),
-        const SizedBox(width: 4),
-        Text(
-          label,
-          style: const TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-            fontSize: 16,
+                                    // Wait 1 second then clear the ball and result
+                                    Future.delayed(const Duration(seconds: 1),
+                                        () {
+                                      if (mounted) {
+                                        // Check if widget is still mounted
+                                        setState(() {
+                                          ballPosition = null;
+                                          showResult = false;
+                                        });
+                                      }
+                                    });
+                                  });
+                                },
+                              ),
+                            ),
+                            // if (ballPosition != null && !isDragging)
+                            //   Positioned(
+                            //     left: 10,
+                            //     top: 440,
+                            //     child: Container(
+                            //       padding: const EdgeInsets.all(8),
+                            //       decoration: BoxDecoration(
+                            //         color: Colors.black.withOpacity(0.7),
+                            //         borderRadius: BorderRadius.circular(8),
+                            //       ),
+                            //       child: Text(
+                            //         'Landing Zone: ${ballPosition!.zoneName}',
+                            //         style: const TextStyle(
+                            //           color: Colors.white,
+                            //           fontSize: 16,
+                            //         ),
+                            //       ),
+                            //     ),
+                            //   ),
+                          ],
+                        );
+                      },
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       ],
@@ -203,11 +299,18 @@ class _TennisCourtState extends State<TennisCourt> {
   }
 }
 
-/// Custom painter for drawing the tennis court and serve markers.
+/// Custom painter for drawing the tennis court and highlighting
+/// the correct service box on the top half based on `serveSide`.
 class CourtPainter extends CustomPainter {
-  final List<Serve> serves;
+  final ServeSide serveSide;
+  final CourtPosition? ballPosition;
+  final List<CourtPosition> ballTrail;
 
-  CourtPainter({required this.serves});
+  CourtPainter({
+    required this.serveSide,
+    this.ballPosition,
+    this.ballTrail = const [],
+  });
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -218,7 +321,7 @@ class CourtPainter extends CustomPainter {
 
     final linePaint = Paint()
       ..color = Colors.white
-      ..strokeWidth = 2.0
+      ..strokeWidth = 5.0
       ..style = PaintingStyle.stroke;
 
     // Draw the full court background + outer boundary
@@ -285,7 +388,6 @@ class CourtPainter extends CustomPainter {
     );
 
     // === Center service line ===
-    // Splits the service boxes from the net down to the service line on each side.
     final centerCourtX = size.width / 2;
     // From net to the top service line
     canvas.drawLine(
@@ -301,7 +403,6 @@ class CourtPainter extends CustomPainter {
     );
 
     // === Center mark on each baseline ===
-    // Typically around 4 inches wide in real tennis, we replicate visually.
     const centerMarkHalfWidth = 4.0;
     // Top baseline
     canvas.drawLine(
@@ -316,152 +417,169 @@ class CourtPainter extends CustomPainter {
       linePaint,
     );
 
-    // === Zone Coloring for Each Service Box (Wide, Body, T) ===
+    // === Zone Coloring for Service Box ===
     final zonePaint = Paint()..style = PaintingStyle.fill;
 
-    // ---- TOP HALF (from topServiceLineY to netY) ----
+    // Get coordinates for service boxes
+    final leftServiceBox = Rect.fromLTRB(
+      singlesStartX,
+      netY,
+      centerCourtX,
+      bottomServiceLineY,
+    );
 
-    // "Wide" Zones (Red)
+    final rightServiceBox = Rect.fromLTRB(
+      centerCourtX,
+      netY,
+      singlesStartX + singlesWidth,
+      bottomServiceLineY,
+    );
+
+    // Determine which service box to color based on serveSide
+    final activeServiceBox =
+        serveSide == ServeSide.right ? rightServiceBox : leftServiceBox;
+
+    // Calculate zone boundaries within the active service box
+    final boxWidth = activeServiceBox.width;
+    final zoneWidth = boxWidth / 3; // Divide box into 3 equal parts
+
+    // "Wide" Zone (Red)
     zonePaint.color = Colors.red.withOpacity(0.3);
-    // Left wide zone
     canvas.drawRect(
       Rect.fromLTRB(
-        singlesStartX,
-        topServiceLineY,
-        size.width / 4,
+        activeServiceBox.left,
         netY,
-      ),
-      zonePaint,
-    );
-    // Right wide zone
-    canvas.drawRect(
-      Rect.fromLTRB(
-        size.width * 3 / 4,
-        topServiceLineY,
-        singlesStartX + singlesWidth,
-        netY,
+        activeServiceBox.left + zoneWidth, // One-third of the box width
+        bottomServiceLineY,
       ),
       zonePaint,
     );
 
-    // "Body" Zones (Green)
+    // "Body" Zone (Green)
     zonePaint.color = Colors.green.withOpacity(0.3);
-    // Left body zone
     canvas.drawRect(
       Rect.fromLTRB(
-        size.width / 4,
-        topServiceLineY,
-        size.width * 3 / 8,
+        activeServiceBox.left + zoneWidth, // Start at one-third
         netY,
-      ),
-      zonePaint,
-    );
-    // Right body zone
-    canvas.drawRect(
-      Rect.fromLTRB(
-        size.width * 5 / 8,
-        topServiceLineY,
-        size.width * 3 / 4,
-        netY,
+        activeServiceBox.left + (zoneWidth * 2), // End at two-thirds
+        bottomServiceLineY,
       ),
       zonePaint,
     );
 
     // "T" Zone (Blue)
     zonePaint.color = Colors.blue.withOpacity(0.3);
-    // Middle T zone
     canvas.drawRect(
       Rect.fromLTRB(
-        size.width * 3 / 8,
-        topServiceLineY,
-        size.width * 5 / 8,
+        activeServiceBox.left + (zoneWidth * 2), // Start at two-thirds
         netY,
-      ),
-      zonePaint,
-    );
-
-    // ---- BOTTOM HALF (from netY to bottomServiceLineY) ----
-    // Repeat the same logic but for the bottom side (net to bottom service line).
-
-    // Wide zones (Red)
-    zonePaint.color = Colors.red.withOpacity(0.3);
-    // Left wide zone
-    canvas.drawRect(
-      Rect.fromLTRB(
-        singlesStartX,
-        netY,
-        size.width / 4,
-        bottomServiceLineY,
-      ),
-      zonePaint,
-    );
-    // Right wide zone
-    canvas.drawRect(
-      Rect.fromLTRB(
-        size.width * 3 / 4,
-        netY,
-        singlesStartX + singlesWidth,
+        activeServiceBox.right, // End at the right edge
         bottomServiceLineY,
       ),
       zonePaint,
     );
 
-    // Body zones (Green)
-    zonePaint.color = Colors.green.withOpacity(0.3);
-    // Left body zone
-    canvas.drawRect(
-      Rect.fromLTRB(
-        size.width / 4,
-        netY,
-        size.width * 3 / 8,
-        bottomServiceLineY,
-      ),
-      zonePaint,
-    );
-    // Right body zone
-    canvas.drawRect(
-      Rect.fromLTRB(
-        size.width * 5 / 8,
-        netY,
-        size.width * 3 / 4,
-        bottomServiceLineY,
-      ),
-      zonePaint,
-    );
-
-    // T zone (Blue)
-    zonePaint.color = Colors.blue.withOpacity(0.3);
-    canvas.drawRect(
-      Rect.fromLTRB(
-        size.width * 3 / 8,
-        netY,
-        size.width * 5 / 8,
-        bottomServiceLineY,
-      ),
-      zonePaint,
-    );
-
-    // === Serve Markers ===
-    for (var serve in serves) {
-      _drawServeMarker(canvas, size, serve);
-    }
-  }
-
-  /// Draws a marker for a serve on the court.
-  void _drawServeMarker(Canvas canvas, Size size, Serve serve) {
-    final markerPaint = Paint()
-      ..color = serve.isGoal ? Colors.green : Colors.red
+    // === Highlight the correct TOP service box for Player 1's serve ===
+    // Serve rules for singles:
+    //   - Right (deuce) side => top-left service box
+    //   - Left (ad) side => top-right service box
+    final highlightPaint = Paint()
+      ..color = Colors.orange.withOpacity(0.35)
       ..style = PaintingStyle.fill;
 
-    // Radius of the marker circle
-    const double radius = 8.0;
+    if (serveSide == ServeSide.right) {
+      // Right side => highlight the top-left box
+      final topLeftBox = Rect.fromLTRB(
+        singlesStartX,
+        topServiceLineY,
+        centerCourtX, // halfway horizontally
+        netY,
+      );
+      canvas.drawRect(topLeftBox, highlightPaint);
+    } else {
+      // Left side => highlight the top-right box
+      final topRightBox = Rect.fromLTRB(
+        centerCourtX,
+        topServiceLineY,
+        singlesStartX + singlesWidth,
+        netY,
+      );
+      canvas.drawRect(topRightBox, highlightPaint);
+    }
 
-    canvas.drawCircle(serve.position, radius, markerPaint);
+    // Draw the ball trail
+    if (ballTrail.isNotEmpty) {
+      for (int i = 0; i < ballTrail.length; i++) {
+        final opacity = (i + 1) / ballTrail.length * 0.5;
+        final trailPaint = Paint()
+          ..color = Colors.yellow.withOpacity(opacity)
+          ..style = PaintingStyle.fill;
+
+        final trailStrokePaint = Paint()
+          ..color = Colors.black.withOpacity(opacity)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2;
+
+        // Draw trail ball shadow
+        canvas.drawCircle(
+          Offset(ballTrail[i].x, ballTrail[i].y) + const Offset(2, 2),
+          8,
+          Paint()..color = Colors.black.withOpacity(opacity * 0.3),
+        );
+
+        // Draw trail ball
+        canvas.drawCircle(
+          Offset(ballTrail[i].x, ballTrail[i].y),
+          8,
+          trailPaint,
+        );
+
+        // Draw trail ball outline
+        canvas.drawCircle(
+          Offset(ballTrail[i].x, ballTrail[i].y),
+          8,
+          trailStrokePaint,
+        );
+      }
+    }
+
+    // Draw the current ball (existing ball drawing code)
+    if (ballPosition != null) {
+      final ballPaint = Paint()
+        ..color = Colors.yellow
+        ..style = PaintingStyle.fill;
+
+      final ballStrokePaint = Paint()
+        ..color = Colors.black
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2;
+
+      // Draw ball shadow
+      canvas.drawCircle(
+        Offset(ballPosition!.x, ballPosition!.y) + const Offset(2, 2),
+        10,
+        Paint()..color = Colors.black.withOpacity(0.3),
+      );
+
+      // Draw ball
+      canvas.drawCircle(
+        Offset(ballPosition!.x, ballPosition!.y),
+        10,
+        ballPaint,
+      );
+
+      // Draw ball outline
+      canvas.drawCircle(
+        Offset(ballPosition!.x, ballPosition!.y),
+        10,
+        ballStrokePaint,
+      );
+    }
   }
 
   @override
   bool shouldRepaint(covariant CourtPainter oldDelegate) {
-    // Repaint when the list of serves changes.
-    return oldDelegate.serves.length != serves.length;
+    return oldDelegate.serveSide != serveSide ||
+        oldDelegate.ballPosition != ballPosition;
   }
 }

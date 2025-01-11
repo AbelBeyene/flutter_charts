@@ -38,8 +38,10 @@ class MyApp extends StatelessWidget {
       ),
       home: Material(
         child: Scaffold(
+          backgroundColor: Colors.black,
           body: Builder(
             builder: (context) => Scaffold(
+              backgroundColor: Colors.black,
               appBar: AppBar(
                 title: const Text(
                   'Tennis Analytics',
@@ -49,6 +51,8 @@ class MyApp extends StatelessWidget {
                   ),
                 ),
                 centerTitle: true,
+
+                //down the T , body or wide...else faul
                 elevation: 0,
                 backgroundColor: Theme.of(context).colorScheme.primaryContainer,
               ),
