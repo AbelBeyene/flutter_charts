@@ -242,7 +242,7 @@ class _TennisCourtState extends State<TennisCourt> {
                 // child: Column(),
                 child: Stack(
                   children: [
-                    if (ballPosition != null && !isDragging && showResult)
+                    if (ballPosition != null)
                       Positioned(
                         left: 10,
                         top: 360,
