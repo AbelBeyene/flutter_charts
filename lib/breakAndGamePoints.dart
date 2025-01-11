@@ -231,83 +231,118 @@ class _BreakPointsRadarChartState extends State<BreakPointsRadarChart>
 
               // Radar Chart
               Container(
-                margin: EdgeInsets.symmetric(
-                  horizontal: 16,
-                ),
-                padding: EdgeInsets.all(16),
+                margin: const EdgeInsets.symmetric(horizontal: 16),
+                padding: const EdgeInsets.all(16),
                 child: SizedBox(
                   height: 350,
                   width: 300,
                   child: AnimatedBuilder(
                     animation: _animation,
                     builder: (context, child) {
-                      return Transform.scale(
-                        scale: _animation.value,
-                        child: Opacity(
-                          opacity: _animation.value,
-                          child: RadarChart(
-                            RadarChartData(
-                              radarTouchData: RadarTouchData(
-                                touchCallback: (FlTouchEvent event, response) {
-                                  setState(() {
-                                    if (!event.isInterestedForInteractions ||
-                                        response == null ||
-                                        response.touchedSpot == null) {
-                                      touchedIndex = -1;
-                                      return;
-                                    }
-                                  });
-                                },
-                              ),
-                              dataSets: [
-                                RadarDataSet(
-                                  dataEntries: [
-                                    RadarEntry(value: 0),
-                                    RadarEntry(
-                                        value: showPercentages
-                                            ? breakPoints.convertedPercentage
-                                                .toDouble()
-                                            : breakPoints.converted.toDouble()),
-                                    RadarEntry(
-                                        value: showPercentages
-                                            ? gamePoints.savedPercentage
-                                                .toDouble()
-                                            : gamePoints.saved.toDouble()),
-                                    RadarEntry(
-                                        value: showPercentages
-                                            ? gamePoints.convertedPercentage
-                                                .toDouble()
-                                            : gamePoints.converted.toDouble()),
-                                  ],
-                                  fillColor: Colors.blue.withOpacity(0.2),
-                                  borderColor: Colors.blue,
-                                  borderWidth: 2,
+                      return Opacity(
+                        opacity: _animation.value,
+                        child: PieChart(
+                          PieChartData(
+                            sectionsSpace: 5,
+                            centerSpaceRadius: 40,
+                            sections: [
+                              PieChartSectionData(
+                                value: showPercentages
+                                    ? breakPoints.savedPercentage.toDouble()
+                                    : breakPoints.saved.toDouble(),
+                                color: Colors.blue.withOpacity(0.8),
+                                title: 'BP\nSaved',
+                                radius: 100,
+                                titleStyle: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
                                 ),
-                              ],
-                              tickCount: 5,
-                              ticksTextStyle: const TextStyle(
-                                  color: Colors.black, fontSize: 10),
-                              radarBorderData: BorderSide(
-                                  color: Colors.grey.withOpacity(0.2)),
-                              gridBorderData: BorderSide(
-                                  color: Colors.grey.withOpacity(0.2)),
-                              titleTextStyle: const TextStyle(
-                                  color: Colors.black, fontSize: 12),
-                              getTitle: (index, angle) {
-                                switch (index) {
-                                  case 0:
-                                    return RadarChartTitle(text: 'BP Saved');
-                                  case 1:
-                                    return RadarChartTitle(text: 'BP Conv.');
-                                  case 2:
-                                    return RadarChartTitle(text: 'GP Saved');
-                                  case 3:
-                                    return RadarChartTitle(text: 'GP Conv.');
-                                  default:
-                                    return RadarChartTitle(text: '');
-                                }
-                              },
-                            ),
+                                badgeWidget: Text(
+                                  showPercentages
+                                      ? '${breakPoints.savedPercentage}%'
+                                      : breakPoints.saved.toString(),
+                                  style: TextStyle(
+                                    color: Colors.blue,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                badgePositionPercentageOffset: 1.3,
+                              ),
+                              PieChartSectionData(
+                                value: showPercentages
+                                    ? breakPoints.convertedPercentage.toDouble()
+                                    : breakPoints.converted.toDouble(),
+                                color: Colors.green.withOpacity(0.8),
+                                title: 'BP\nConv.',
+                                radius: 100,
+                                titleStyle: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                                badgeWidget: Text(
+                                  showPercentages
+                                      ? '${breakPoints.convertedPercentage}%'
+                                      : breakPoints.converted.toString(),
+                                  style: TextStyle(
+                                    color: Colors.green,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                badgePositionPercentageOffset: 1.3,
+                              ),
+                              PieChartSectionData(
+                                value: showPercentages
+                                    ? gamePoints.savedPercentage.toDouble()
+                                    : gamePoints.saved.toDouble(),
+                                color: Colors.orange.withOpacity(0.8),
+                                title: 'GP\nSaved',
+                                radius: 100,
+                                titleStyle: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                                badgeWidget: Text(
+                                  showPercentages
+                                      ? '${gamePoints.savedPercentage}%'
+                                      : gamePoints.saved.toString(),
+                                  style: TextStyle(
+                                    color: Colors.orange,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                badgePositionPercentageOffset: 1.3,
+                              ),
+                              PieChartSectionData(
+                                value: showPercentages
+                                    ? gamePoints.convertedPercentage.toDouble()
+                                    : gamePoints.converted.toDouble(),
+                                color: Colors.purple.withOpacity(0.8),
+                                title: 'GP\nConv.',
+                                radius: 100,
+                                titleStyle: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                                badgeWidget: Text(
+                                  showPercentages
+                                      ? '${gamePoints.convertedPercentage}%'
+                                      : gamePoints.converted.toString(),
+                                  style: TextStyle(
+                                    color: Colors.purple,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                badgePositionPercentageOffset: 1.3,
+                              ),
+                            ],
                           ),
                         ),
                       );
@@ -352,7 +387,7 @@ class _BreakPointsRadarChartState extends State<BreakPointsRadarChart>
                       children: [
                         _buildLegendItem(
                             'B - Points Saved',
-                            const Color(0xFF4A90E2),
+                            Colors.orange, // Light salmon/orange
                             breakPoints.savedPercentage),
                         const SizedBox(height: 8),
                         _buildLegendItem(
@@ -360,7 +395,7 @@ class _BreakPointsRadarChartState extends State<BreakPointsRadarChart>
                             const Color(0xFF50C878),
                             breakPoints.convertedPercentage),
                         const SizedBox(height: 8),
-                        _buildLegendItem('G Points Saved', Colors.red,
+                        _buildLegendItem('G Points Saved', Colors.blue,
                             gamePoints.savedPercentage),
                         const SizedBox(height: 8),
                         _buildLegendItem(
@@ -511,6 +546,7 @@ class _BreakPointsRadarChartState extends State<BreakPointsRadarChart>
 
   Widget _buildLegendItem(String text, Color color, int percentage) {
     return Container(
+      width: 210,
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
         color: color.withOpacity(0.1),

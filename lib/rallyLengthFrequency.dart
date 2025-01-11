@@ -157,7 +157,6 @@ class _RallyLengthFrequencyChartState extends State<RallyLengthFrequencyChart>
       child: Column(
         children: [
           Row(
-            // crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
                 margin: const EdgeInsets.symmetric(horizontal: 16),
@@ -172,69 +171,110 @@ class _RallyLengthFrequencyChartState extends State<RallyLengthFrequencyChart>
                         scale: _animation.value,
                         child: Opacity(
                           opacity: _animation.value,
-                          child: RadarChart(
-                            RadarChartData(
-                              radarTouchData: RadarTouchData(
-                                touchCallback: (FlTouchEvent event, response) {
-                                  setState(() {
-                                    if (!event.isInterestedForInteractions ||
-                                        response == null ||
-                                        response.touchedSpot == null) {
-                                      touchedIndex = -1;
-                                      return;
-                                    }
-                                  });
+                          child: BarChart(
+                            BarChartData(
+                              alignment: BarChartAlignment.spaceAround,
+                              maxY: 100,
+                              barTouchData: BarTouchData(
+                                enabled: true,
+                                touchTooltipData: BarTouchTooltipData(
+                                  // tooltipBackgroundColor: Colors.blueGrey,
+                                  getTooltipItem:
+                                      (group, groupIndex, rod, rodIndex) {
+                                    return BarTooltipItem(
+                                      '${rod.toY.round()}%',
+                                      const TextStyle(color: Colors.white),
+                                    );
+                                  },
+                                ),
+                              ),
+                              titlesData: FlTitlesData(
+                                show: true,
+                                bottomTitles: AxisTitles(
+                                  sideTitles: SideTitles(
+                                    showTitles: true,
+                                    getTitlesWidget: (value, meta) {
+                                      const titles = [
+                                        '1-4',
+                                        '5-8',
+                                        '9-12',
+                                        '13-20',
+                                        '21+'
+                                      ];
+                                      return Padding(
+                                        padding:
+                                            const EdgeInsets.only(top: 8.0),
+                                        child: Text(
+                                          titles[value.toInt()],
+                                          style: const TextStyle(
+                                            color: Colors.black,
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 12,
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                ),
+                                leftTitles: AxisTitles(
+                                  sideTitles: SideTitles(
+                                    showTitles: true,
+                                    reservedSize: 30,
+                                    getTitlesWidget: (value, meta) {
+                                      return Text(
+                                        '${value.toInt()}%',
+                                        style: const TextStyle(
+                                          color: Colors.black,
+                                          fontSize: 10,
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                ),
+                                rightTitles: AxisTitles(
+                                    sideTitles: SideTitles(showTitles: false)),
+                                topTitles: AxisTitles(
+                                    sideTitles: SideTitles(showTitles: false)),
+                              ),
+                              gridData: FlGridData(
+                                show: true,
+                                drawVerticalLine: false,
+                                horizontalInterval: 20,
+                                getDrawingHorizontalLine: (value) {
+                                  return FlLine(
+                                    color: Colors.grey.withOpacity(0.2),
+                                    strokeWidth: 1,
+                                  );
                                 },
                               ),
-                              dataSets: [
-                                RadarDataSet(
-                                  dataEntries: [
-                                    RadarEntry(
-                                        value:
-                                            rallyLength.oneToFour.toDouble()),
-                                    RadarEntry(
-                                        value:
-                                            rallyLength.fiveToEight.toDouble()),
-                                    RadarEntry(
-                                        value: rallyLength.nineToTwelve
-                                            .toDouble()),
-                                    RadarEntry(
-                                        value: rallyLength.thirteenToTwenty
-                                            .toDouble()),
-                                    RadarEntry(
-                                        value: rallyLength.twentyOnePlus
-                                            .toDouble()),
-                                  ],
-                                  fillColor: Colors.blue.withOpacity(0.2),
-                                  borderColor: Colors.blue,
-                                  borderWidth: 2,
-                                ),
+                              borderData: FlBorderData(show: false),
+                              barGroups: [
+                                _generateBarGroup(
+                                    0,
+                                    rallyLength
+                                        .getPercentage(rallyLength.oneToFour),
+                                    Colors.blue),
+                                _generateBarGroup(
+                                    1,
+                                    rallyLength
+                                        .getPercentage(rallyLength.fiveToEight),
+                                    const Color(0xFF50C878)),
+                                _generateBarGroup(
+                                    2,
+                                    rallyLength.getPercentage(
+                                        rallyLength.nineToTwelve),
+                                    Colors.red),
+                                _generateBarGroup(
+                                    3,
+                                    rallyLength.getPercentage(
+                                        rallyLength.thirteenToTwenty),
+                                    const Color(0xFF9B59B6)),
+                                _generateBarGroup(
+                                    4,
+                                    rallyLength.getPercentage(
+                                        rallyLength.twentyOnePlus),
+                                    Colors.orange),
                               ],
-                              tickCount: 5,
-                              ticksTextStyle: const TextStyle(
-                                  color: Colors.black, fontSize: 10),
-                              radarBorderData: BorderSide(
-                                  color: Colors.grey.withOpacity(0.2)),
-                              gridBorderData: BorderSide(
-                                  color: Colors.grey.withOpacity(0.2)),
-                              titleTextStyle: const TextStyle(
-                                  color: Colors.black, fontSize: 12),
-                              getTitle: (index, angle) {
-                                switch (index) {
-                                  case 0:
-                                    return RadarChartTitle(text: '1-4');
-                                  case 1:
-                                    return RadarChartTitle(text: '5-8');
-                                  case 2:
-                                    return RadarChartTitle(text: '9-12');
-                                  case 3:
-                                    return RadarChartTitle(text: '13-20');
-                                  case 4:
-                                    return RadarChartTitle(text: '21+');
-                                  default:
-                                    return RadarChartTitle(text: '');
-                                }
-                              },
                             ),
                           ),
                         ),
@@ -312,6 +352,25 @@ class _RallyLengthFrequencyChartState extends State<RallyLengthFrequencyChart>
           ),
         ],
       ),
+    );
+  }
+
+  BarChartGroupData _generateBarGroup(int x, double y, Color color) {
+    return BarChartGroupData(
+      x: x,
+      barRods: [
+        BarChartRodData(
+          toY: y,
+          color: color,
+          width: 20,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(6)),
+          backDrawRodData: BackgroundBarChartRodData(
+            show: true,
+            toY: 100,
+            color: Colors.grey.withOpacity(0.1),
+          ),
+        ),
+      ],
     );
   }
 

@@ -106,31 +106,128 @@ class _TennisCourtState extends State<TennisCourt> {
       children: [
         // Serve position buttons
         Padding(
-          padding: const EdgeInsets.all(8.0),
+          padding: const EdgeInsets.symmetric(vertical: 16.0, horizontal: 24.0),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              ElevatedButton(
-                onPressed: () => setState(() => serveSide = ServeSide.right),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor:
-                      serveSide == ServeSide.right ? Colors.blue : Colors.grey,
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              Expanded(
+                child: Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(8),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.1),
+                        spreadRadius: 1,
+                        blurRadius: 4,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: ElevatedButton(
+                    onPressed: () =>
+                        setState(() => serveSide = ServeSide.right),
+                    style: ElevatedButton.styleFrom(
+                      foregroundColor: Colors.white,
+                      backgroundColor: serveSide == ServeSide.right
+                          ? const Color(0xFFFF9800) // Orange
+                          : const Color(0xFF757575), // Grey
+                      elevation: serveSide == ServeSide.right ? 0 : 2,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 16,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.sports_tennis,
+                            color: serveSide == ServeSide.right
+                                ? Colors.white
+                                : Colors.white70,
+                            size: 20,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Deuce Side',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: serveSide == ServeSide.right
+                                  ? FontWeight.bold
+                                  : FontWeight.normal,
+                              color: serveSide == ServeSide.right
+                                  ? Colors.white
+                                  : Colors.white70,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                 ),
-                child: const Text('Deuce Side'),
               ),
               const SizedBox(width: 16),
-              ElevatedButton(
-                onPressed: () => setState(() => serveSide = ServeSide.left),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: serveSide == ServeSide.left
-                      ? Colors.blue
-                      : const Color.fromARGB(180, 158, 158, 158),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              Expanded(
+                child: Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(8),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.1),
+                        spreadRadius: 1,
+                        blurRadius: 4,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: ElevatedButton(
+                    onPressed: () => setState(() => serveSide = ServeSide.left),
+                    style: ElevatedButton.styleFrom(
+                      foregroundColor: Colors.white,
+                      backgroundColor: serveSide == ServeSide.left
+                          ? const Color(0xFFFF9800) // Orange
+                          : const Color(0xFF757575), // Grey
+                      elevation: serveSide == ServeSide.left ? 0 : 2,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: 16,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.sports_tennis,
+                          color: serveSide == ServeSide.left
+                              ? Colors.white
+                              : Colors.white70,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Ad Side',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: serveSide == ServeSide.left
+                                ? FontWeight.bold
+                                : FontWeight.normal,
+                            color: serveSide == ServeSide.left
+                                ? Colors.white
+                                : Colors.white70,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
-                child: const Text('Ad Side'),
               ),
             ],
           ),
